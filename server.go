@@ -20,6 +20,7 @@ func backendServer(port string) {
 	router.HandleFunc("/refollowers", GetReFollowers).Methods("GET")
 	router.HandleFunc("/followersID", GetFollowersID).Methods("GET")
 	router.HandleFunc("/unfollowers", GetUnfollowers).Methods("GET")
+	router.HandleFunc("/follows", GetFollows).Methods("GET")
 	router.HandleFunc("/user/{id}", GetUser).Methods("GET")
 	fmt.Printf("[SYS] Server listening at http://localhost:%s\n", port)
 	log.Fatal(http.ListenAndServe(":"+port, router))
@@ -36,6 +37,7 @@ func GetRoot(w http.ResponseWriter, r *http.Request) {
 	<li><a href="/refollowers">/refollowers</a></li>
 	<li><a href="/followersID">/followersID</a></li>
 	<li><a href="/unfollowers">/unfollowers</a></li>
+	<li><a href="/follows">/follows</a></li>
 	<li>/user/{id}</li>
 	</ul>
 	`))
@@ -113,6 +115,61 @@ func GetFollowers(w http.ResponseWriter, r *http.Request) {
 			f.ForEach(func(k, v []byte) error {
 				udata := u.Get(k)
 				ufdata := uf.Get(k)
+				if udata != nil && len(udata) > 0 {
+					parsed, _ := gabs.ParseJSON(udata)
+					jsondata, _ := parsed.ChildrenMap()
+					out := User{
+						string(k),
+						jsondata["login"].Data().(string),
+						jsondata["display_name"].Data().(string),
+						jsondata["profile_image_url"].Data().(string),
+						string(v),
+						string(ufdata)}
+					outputUsers = append(outputUsers, out)
+				} else {
+					out := User{
+						string(k),
+						"",
+						"",
+						"",
+						string(v),
+						string(ufdata)}
+					outputUsers = append(outputUsers, out)
+				}
+				return nil
+			})
+		}
+		return nil
+	})
+
+	sort.Slice(outputUsers, func(i, j int) bool {
+		return outputUsers[i].FollowedAt > outputUsers[j].FollowedAt
+	})
+
+	w.WriteHeader(200)
+	json.NewEncoder(w).Encode(outputUsers)
+}
+
+// GetFollows find all follows detailed info
+func GetFollows(w http.ResponseWriter, r *http.Request) {
+	var outputUsers []User
+	db, err := bolt.Open(defaultDBName, 0600, nil)
+	if err != nil {
+		w.WriteHeader(500)
+		return
+	}
+	defer db.Close()
+
+	db.View(func(tx *bolt.Tx) error {
+		f := tx.Bucket([]byte("followers"))
+		uf := tx.Bucket([]byte("unfollowers"))
+		o := tx.Bucket([]byte("follows"))
+		u := tx.Bucket([]byte("users"))
+
+
+		if  o != nil u != nil {
+			o.ForEach(func(k, v []byte) error {
+				udata := u.Get(k)
 				if udata != nil && len(udata) > 0 {
 					parsed, _ := gabs.ParseJSON(udata)
 					jsondata, _ := parsed.ChildrenMap()

@@ -215,3 +215,54 @@ func getFollowersFromTwitch(userID string, pagination string, clientID string, o
 	}
 	return apiResult{resp.StatusCode, nil, limit, limitRemain, limitReset}, nil, errors.New("getFollowers: cannot get followers from Twitch API")
 }
+
+func getFollowsFromTwitch(userID string, pagination string, clientID string, oauth string) (apiResult, []follower, error) {
+	client := &http.Client{}
+	req, _ := http.NewRequest("GET", fmt.Sprintf("https://api.twitch.tv/helix/users/follows?to_id=%s&first=100&after=%s", userID, pagination), nil)
+	req.Header.Add("Client-ID", fmt.Sprintf("%s", clientID))
+	if len(oauth) > 0 {
+		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", oauth))
+	}
+	resp, err := client.Do(req)
+	if err != nil {
+		log.Fatal(err)
+	}
+	defer resp.Body.Close()
+
+	header := resp.Header
+	limit, _ := strconv.Atoi(header["Ratelimit-Limit"][0])
+	limitRemain, _ := strconv.Atoi(header["Ratelimit-Remaining"][0])
+	limitReset, _ := strconv.ParseInt(header["Ratelimit-Reset"][0], 10, 64)
+
+	if resp.StatusCode == 200 {
+		res, _ := ioutil.ReadAll(resp.Body)
+		parsed, err := gabs.ParseJSON(res)
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		var output []follower
+		follows, err := parsed.Path("data").Children()
+		if err != nil {
+			log.Fatal(err)
+		}
+
+		nextPagination := ""
+		if parsed.Path("pagination.cursor").Data() != nil {
+			nextPagination = parsed.Path("pagination.cursor").Data().(string)
+		}
+
+		if len(follows) > 0 {
+			for _, child := range follows {
+				childdata, _ := child.ChildrenMap()
+				uid, _ := childdata["to_id"].Data().(string)
+				followAt := childdata["followed_at"].Data().(string)
+				output = append(output, follower{uid, followAt})
+			}
+		}
+		return apiResult{resp.StatusCode,
+			map[string]string{"next": nextPagination},
+			limit, limitRemain, limitReset}, output, nil
+	}
+	return apiResult{resp.StatusCode, nil, limit, limitRemain, limitReset}, nil, errors.New("getFollows: cannot get follows from Twitch API")
+}

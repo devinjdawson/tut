@@ -226,6 +226,18 @@ func initialize() config {
 		return nil
 	})
 
+	// Try to create follower bucket and userID bucket inside it
+	db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("follows"))
+		if b == nil {
+			_, err := tx.CreateBucket([]byte("follows"))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+
 	// Try to create unfollower and userID bucket
 	db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("unfollowers"))
@@ -260,10 +272,18 @@ func monitor(c config) {
 		log.Fatal(err)
 	}
 	followMap := make(map[string]string)
+	followsMap: := make(map[string]string)
 	unfollowMap := make(map[string]string)
+
 	db.View(func(tx *bolt.Tx) error {
 		f := tx.Bucket([]byte("followers"))
 		f.ForEach(func(k, v []byte) error {
+			followMap[string(k)] = string(v)
+			return nil
+		})
+
+		o := tx.Bucket([]byte("follows"))
+		o.ForEach(func(k, v []byte) error {
 			followMap[string(k)] = string(v)
 			return nil
 		})
@@ -283,6 +303,9 @@ func monitor(c config) {
 		var toAdd []follower
 		result, out, _ := getFollowersFromTwitch(c.userID, page, c.clientID, c.oauth)
 
+		var toAdd []follows
+		result, out, _ := getFollowsFromTwitch(c.userID, page, c.clientID, c.oauth)
+
 		if result.statusCode != 200 && result.limitRemaining == 0 {
 			waitTime := time.Unix(result.limtResetTime, 0).Sub(time.Now())
 			// fmt.Printf("[SYS] Waiting for API Limit Reset (%s)...\n", waitTime)
@@ -296,6 +319,7 @@ func monitor(c config) {
 		}
 
 		page = result.response["next"]
+
 
 		// Filter out followers
 		for _, follower := range out {
@@ -432,10 +456,28 @@ func updateUsers(c config) bool {
 	var waitTime time.Duration
 	db.Update(func(tx *bolt.Tx) error {
 		f := tx.Bucket([]byte("followers"))
+		o := tx.Bucket([]byte("follows"))
 		u := tx.Bucket([]byte("users"))
 
-		cur := f.Cursor()
-		for k, _ := cur.First(); k != nil; k, _ = cur.Next() {
+
+		fcur := f.Cursor()
+		for k, _ := fcur.First(); k != nil; k, _ = fcur.Next() {
+			data := u.Get(k)
+			if data == nil {
+				result, _ := getUserFromTwitch(string(k), c.clientID, c.oauth)
+				if result.statusCode != 200 && result.limitRemaining == 0 {
+					waitTime = time.Unix(result.limtResetTime, 0).Sub(time.Now())
+					alldone = false
+					break
+				}
+				err := u.Put([]byte(k), []byte(result.response["user"]))
+				if err != nil {
+					return err
+				}
+			}
+		}
+		ocur := o.Cursor()
+		for k, _ := ocur.First(); k != nil; k, _ = ocur.Next() {
 			data := u.Get(k)
 			if data == nil {
 				result, _ := getUserFromTwitch(string(k), c.clientID, c.oauth)
