@@ -298,42 +298,42 @@ func monitor(c config) {
 	db.Close()
 
 	// Get next page if there is any
-	var page string
+	var Fpage string
+	var Opage string
 	for {
-		var toAdd []follower
-		result, out, _ := getFollowersFromTwitch(c.userID, page, c.clientID, c.oauth)
+		var FtoAdd []follower
+		Fresult, Fout, _ := getFollowersFromTwitch(c.userID, page, c.clientID, c.oauth)
 
-		if result.statusCode != 200 && result.limitRemaining == 0 {
-			waitTime := time.Unix(result.limtResetTime, 0).Sub(time.Now())
+		if Fresult.statusCode != 200 && Fresult.limitRemaining == 0 {
+			waitTime := time.Unix(Fresult.limtResetTime, 0).Sub(time.Now())
 			// fmt.Printf("[SYS] Waiting for API Limit Reset (%s)...\n", waitTime)
 			time.Sleep(waitTime)
 			// fmt.Println("[SYS] API Limit Reset Done...")
 			continue
 		}
 
-		if len(out) == 0 {
+		if len(Fout) == 0 {
 			break
 		}
 
-		page = result.response["next"]
+		Fpage = result.response["next"]
+		// Get next page if there is any
+		var OtoAdd []follower
+		Oresult, Oout, _ := getFollowsFromTwitch(c.userID, page, c.clientID, c.oauth)
 
-	    // Get next page if there is any
-		var toAdd []follows
-		result, out, _ := getFollowersFromTwitch(c.userID, page, c.clientID, c.oauth)
-
-		if result.statusCode != 200 && result.limitRemaining == 0 {
-			waitTime := time.Unix(result.limtResetTime, 0).Sub(time.Now())
+		if Oresult.statusCode != 200 && Oresult.limitRemaining == 0 {
+			waitTime := time.Unix(Oresult.limtResetTime, 0).Sub(time.Now())
 			// fmt.Printf("[SYS] Waiting for API Limit Reset (%s)...\n", waitTime)
 			time.Sleep(waitTime)
 			// fmt.Println("[SYS] API Limit Reset Done...")
 			continue
 		}
 
-		if len(out) == 0 {
+		if len(Oout) == 0 {
 			break
 		}
 
-		page = result.response["next"]
+		Opage = Oresult.response["next"]
 
 
 		// Filter out followers
@@ -384,7 +384,59 @@ func monitor(c config) {
 				} else {
 					fmt.Printf("[INFO][FOLLOW] UID: %s Followed: %s\n", follower.uid, follower.followedAt)
 				}
-				toAdd = append(toAdd, follower)
+				FtoAdd = append(FtoAdd, follower)
+			}
+		}
+
+		// Filter out follows
+		for _, follows := range out {
+			_, exist := followsMap[follows.uid]
+			if exist {
+				delete(followsMap, follows.uid)
+			} else {
+				_, refollows := unfollowMap[follows.uid]
+
+				if refollows {
+					db, err = bolt.Open(defaultDBName, 0600, nil)
+					if err != nil {
+						log.Fatal(err)
+					}
+
+					// Try to find user data in user bucket
+					var displayname, login string
+					db.View(func(tx *bolt.Tx) error {
+						u := tx.Bucket([]byte("users"))
+						userdata := u.Get([]byte(follows.uid))
+						if userdata != nil {
+							parsed, _ := gabs.ParseJSON([]byte(userdata))
+							user, _ := parsed.ChildrenMap()
+							displayname, _ = user["display_name"].Data().(string)
+							login, _ = user["login"].Data().(string)
+						}
+						return nil
+					})
+					db.Close()
+
+					// If user data is not presetned in user bucket, we querry twitch API
+					if displayname == "" && login == "" {
+					getUserNameInRefollows:
+						result, _ := getUserNameFromTwitch(follows.uid, c.clientID, c.oauth)
+						if result.statusCode != 200 && result.limitRemaining == 0 {
+							waitTime := time.Unix(result.limtResetTime, 0).Sub(time.Now())
+							// fmt.Printf("[SYS] Waiting for API Limit Reset (%s)...\n", waitTime)
+							time.Sleep(waitTime)
+							// fmt.Println("[SYS] API Limit Reset Done...")
+							goto getUserNameInRefollows
+						}
+						displayname = result.response["displayname"]
+						login = result.response["login"]
+					}
+
+					fmt.Printf("[INFO][RE-FOLLOW] %s (%s) [%s] Followed: %s\n", displayname, login, follows.uid, follows.followedAt)
+				} else {
+					fmt.Printf("[INFO][FOLLOW] UID: %s Follows: %s\n", follows.uid, follows.followedAt)
+				}
+				OtoAdd = append(OtoAdd, follows)
 			}
 		}
 
@@ -396,7 +448,19 @@ func monitor(c config) {
 		db.Update(func(tx *bolt.Tx) error {
 			f := tx.Bucket([]byte("followers"))
 
-			for _, v := range toAdd {
+			for _, v := range FtoAdd {
+				err := f.Put([]byte(v.uid), []byte(v.followedAt))
+				if err != nil {
+					return err
+				}
+			}
+
+			return nil
+		}
+		db.Update(func(tx *bolt.Tx) error {
+			o := tx.Bucket([]byte("follows"))
+
+			for _, v := range OtoAdd {
 				err := f.Put([]byte(v.uid), []byte(v.followedAt))
 				if err != nil {
 					return err
