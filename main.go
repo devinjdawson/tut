@@ -303,8 +303,23 @@ func monitor(c config) {
 		var toAdd []follower
 		result, out, _ := getFollowersFromTwitch(c.userID, page, c.clientID, c.oauth)
 
+		if result.statusCode != 200 && result.limitRemaining == 0 {
+			waitTime := time.Unix(result.limtResetTime, 0).Sub(time.Now())
+			// fmt.Printf("[SYS] Waiting for API Limit Reset (%s)...\n", waitTime)
+			time.Sleep(waitTime)
+			// fmt.Println("[SYS] API Limit Reset Done...")
+			continue
+		}
+
+		if len(out) == 0 {
+			break
+		}
+
+		page = result.response["next"]
+
+	    // Get next page if there is any
 		var toAdd []follows
-		result, out, _ := getFollowsFromTwitch(c.userID, page, c.clientID, c.oauth)
+		result, out, _ := getFollowersFromTwitch(c.userID, page, c.clientID, c.oauth)
 
 		if result.statusCode != 200 && result.limitRemaining == 0 {
 			waitTime := time.Unix(result.limtResetTime, 0).Sub(time.Now())
