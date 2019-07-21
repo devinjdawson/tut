@@ -272,7 +272,7 @@ func monitor(c config) {
 		log.Fatal(err)
 	}
 	followMap := make(map[string]string)
-	followsMap: := make(map[string]string)
+	followsMap := make(map[string]string)
 	unfollowMap := make(map[string]string)
 
 	db.View(func(tx *bolt.Tx) error {
