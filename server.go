@@ -8,7 +8,7 @@ import (
 	"sort"
 	"strconv"
 
-	"gabs-v1.4.0"
+	"github.com/Jeffail/gabs"
 	"github.com/boltdb/bolt"
 	"github.com/gorilla/mux"
 )
