@@ -170,6 +170,7 @@ func GetFollows(w http.ResponseWriter, r *http.Request) {
 		if  o != nil && u != nil && uf != nil {
 			o.ForEach(func(k, v []byte) error {
 				udata := u.Get(k)
+				ufdata := uf.Get(k)
 				if udata != nil && len(udata) > 0 {
 					parsed, _ := gabs.ParseJSON(udata)
 					jsondata, _ := parsed.ChildrenMap()
