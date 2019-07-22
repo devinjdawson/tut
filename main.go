@@ -447,23 +447,28 @@ func monitor(c config) {
 		}
 		db.Update(func(tx *bolt.Tx) error {
 			f := tx.Bucket([]byte("followers"))
-			o := tx.Bucket([]byte("follows"))
-
+	
 			for _, v := range FtoAdd {
 				err := f.Put([]byte(v.uid), []byte(v.followedAt))
 				if err != nil {
 					return err
 				}
-			for _, v := range OtoAdd {
-				err := f.Put([]byte(v.uid), []byte(v.followedAt))
-				if err != nil {
-					return err
-				}
-			}
 
 			return nil
 		}
-      })
+      }
+	  db.Update(func(tx *bolt.Tx) error {
+		  o := tx.Bucket([]byte("follows"))
+
+		  for _, v := range OtoAdd {
+			  err := f.Put([]byte(v.uid), []byte(v.followedAt))
+			  if err != nil {
+				  return err
+			  }
+		  }
+
+		  return nil
+	  })
 		db.Close()
 	}
 
