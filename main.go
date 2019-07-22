@@ -302,7 +302,7 @@ func monitor(c config) {
 	var Opage string
 	for {
 		var FtoAdd []follower
-		Fresult, Fout, _ := getFollowersFromTwitch(c.userID, page, c.clientID, c.oauth)
+		Fresult, Fout, _ := getFollowersFromTwitch(c.userID, Fpage, c.clientID, c.oauth)
 
 		if Fresult.statusCode != 200 && Fresult.limitRemaining == 0 {
 			waitTime := time.Unix(Fresult.limtResetTime, 0).Sub(time.Now())
@@ -316,10 +316,10 @@ func monitor(c config) {
 			break
 		}
 
-		Fpage = result.response["next"]
+		Fpage = Fresult.response["next"]
 		// Get next page if there is any
 		var OtoAdd []follower
-		Oresult, Oout, _ := getFollowsFromTwitch(c.userID, page, c.clientID, c.oauth)
+		Oresult, Oout, _ := getFollowsFromTwitch(c.userID, Opage, c.clientID, c.oauth)
 
 		if Oresult.statusCode != 200 && Oresult.limitRemaining == 0 {
 			waitTime := time.Unix(Oresult.limtResetTime, 0).Sub(time.Now())
@@ -337,7 +337,7 @@ func monitor(c config) {
 
 
 		// Filter out followers
-		for _, follower := range out {
+		for _, follower := range Fout {
 			_, exist := followMap[follower.uid]
 			if exist {
 				delete(followMap, follower.uid)
@@ -389,7 +389,7 @@ func monitor(c config) {
 		}
 
 		// Filter out follows
-		for _, follows := range out {
+		for _, follows := range Oout {
 			_, exist := followsMap[follows.uid]
 			if exist {
 				delete(followsMap, follows.uid)
