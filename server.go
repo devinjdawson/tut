@@ -167,7 +167,7 @@ func GetFollows(w http.ResponseWriter, r *http.Request) {
 		u := tx.Bucket([]byte("users"))
 
 
-		if  o != nil && u != nil {
+		if  o != nil && u != nil && uf != nil {
 			o.ForEach(func(k, v []byte) error {
 				udata := u.Get(k)
 				if udata != nil && len(udata) > 0 {
