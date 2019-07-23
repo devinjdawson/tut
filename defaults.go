@@ -1,6 +1,6 @@
 package main
 
-const defaultClientID = "37ygsxklephujrb3o8x1zhiul582tl"
-const defaultPort = "5487"
+const defaultClientID = ""
+const defaultPort = "25001"
 const defaultDBName = "TUT.db"
 const defaultUpdateInterval = 60 // minutes

@@ -455,12 +455,12 @@ func monitor(c config) {
 				}
 			}
 			return nil
-			}
+		})
 	  db.Update(func(tx *bolt.Tx) error {
 		  o := tx.Bucket([]byte("follows"))
 
 		  for _, v := range OtoAdd {
-			  err := f.Put([]byte(v.uid), []byte(v.followedAt))
+			  err := o.Put([]byte(v.uid), []byte(v.followedAt))
 			  if err != nil {
 				  return err
 			  }

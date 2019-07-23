@@ -161,7 +161,6 @@ func GetFollows(w http.ResponseWriter, r *http.Request) {
 	defer db.Close()
 
 	db.View(func(tx *bolt.Tx) error {
-		f := tx.Bucket([]byte("followers"))
 		uf := tx.Bucket([]byte("unfollowers"))
 		o := tx.Bucket([]byte("follows"))
 		u := tx.Bucket([]byte("users"))
