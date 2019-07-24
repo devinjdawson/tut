@@ -294,11 +294,11 @@ func monitor(c config) {
 			return nil
 		})
 
-		o := tx.Bucket([]byte("following"))
-		o.ForEach(func(k, v []byte) error {
-			followedMap[string(k)] = string(v)
-			return nil
-		})
+		// o := tx.Bucket([]byte("following"))
+		// o.ForEach(func(k, v []byte) error {
+		// 	followedMap[string(k)] = string(v)
+		// 	return nil
+		// })
 
 		uf := tx.Bucket([]byte("unfollowers"))
 		uf.ForEach(func(k, v []byte) error {
@@ -306,11 +306,11 @@ func monitor(c config) {
 			return nil
 		})
 
-		uo := tx.Bucket([]byte("unfollowing"))
-		uo.ForEach(func(k, v []byte) error {
-			unfollowedMap[string(k)] = string(v)
-			return nil
-		})
+		// uo := tx.Bucket([]byte("unfollowing"))
+		// uo.ForEach(func(k, v []byte) error {
+		// 	unfollowedMap[string(k)] = string(v)
+		// 	return nil
+		// })
 		return nil
 	})
 	db.Close()
