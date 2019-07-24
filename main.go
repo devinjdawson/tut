@@ -226,7 +226,7 @@ func initialize() config {
 		return nil
 	})
 
-	// Try to create follower bucket and userID bucket inside it
+	// Try to create following bucket and userID bucket inside it
 	db.Update(func(tx *bolt.Tx) error {
 		b := tx.Bucket([]byte("following"))
 		if b == nil {
@@ -249,11 +249,22 @@ func initialize() config {
 		}
 		return nil
 	})
-	// Try to create unfollower and userID bucket
+	// Try to create unfollowing and userID bucket
 	db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("notfollowers"))
+		b := tx.Bucket([]byte("unfollowing"))
 		if b == nil {
-			_, err := tx.CreateBucket([]byte("notfollowers"))
+			_, err := tx.CreateBucket([]byte("unfollowing"))
+			if err != nil {
+				return err
+			}
+		}
+		return nil
+	})
+	// Try to create notfollowing and userID bucket
+	db.Update(func(tx *bolt.Tx) error {
+		b := tx.Bucket([]byte("nowfollowing"))
+		if b == nil {
+			_, err := tx.CreateBucket([]byte("notfollowing"))
 			if err != nil {
 				return err
 			}
@@ -294,11 +305,11 @@ func monitor(c config) {
 			return nil
 		})
 
-		// o := tx.Bucket([]byte("following"))
-		// o.ForEach(func(k, v []byte) error {
-		// 	followedMap[string(k)] = string(v)
-		// 	return nil
-		// })
+		o := tx.Bucket([]byte("following"))
+		o.ForEach(func(k, v []byte) error {
+			followedMap[string(k)] = string(v)
+			return nil
+		})
 
 		uf := tx.Bucket([]byte("unfollowers"))
 		uf.ForEach(func(k, v []byte) error {
@@ -306,11 +317,11 @@ func monitor(c config) {
 			return nil
 		})
 
-		// uo := tx.Bucket([]byte("unfollowing"))
-		// uo.ForEach(func(k, v []byte) error {
-		// 	unfollowedMap[string(k)] = string(v)
-		// 	return nil
-		// })
+		uo := tx.Bucket([]byte("unfollowing"))
+		uo.ForEach(func(k, v []byte) error {
+			unfollowedMap[string(k)] = string(v)
+			return nil
+		})
 		return nil
 	})
 	db.Close()
