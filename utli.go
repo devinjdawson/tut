@@ -15,6 +15,10 @@ type follower struct {
 	uid        string
 	followedAt string
 }
+type followed struct {
+	uid        string
+	followedAt string
+}
 
 // User profile info
 type User struct {
@@ -33,6 +37,15 @@ type Unfollower struct {
 	Displayname     string `json:"displayname"`
 	ProfileImageURL string `json:"profileImageURL"`
 	UnfollowedAt    string `json:"unfollowedAt"`
+}
+
+// Notfollower user profile info
+type Notfollower struct {
+	ID              string `json:"id"`
+	Login           string `json:"login"`
+	Displayname     string `json:"displayname"`
+	ProfileImageURL string `json:"profileImageURL"`
+	FollowedAt      string `json:"followedAt"`
 }
 
 type config struct {
@@ -216,9 +229,9 @@ func getFollowersFromTwitch(userID string, pagination string, clientID string, o
 	return apiResult{resp.StatusCode, nil, limit, limitRemain, limitReset}, nil, errors.New("getFollowers: cannot get followers from Twitch API")
 }
 
-func getFollowsFromTwitch(userID string, pagination string, clientID string, oauth string) (apiResult, []follower, error) {
+func getFollowsFromTwitch(userID string, pagination string, clientID string, oauth string) (apiResult, []followed, error) {
 	client := &http.Client{}
-	req, _ := http.NewRequest("GET", fmt.Sprintf("https://api.twitch.tv/helix/users/follows?to_id=%s&first=100&after=%s", userID, pagination), nil)
+	req, _ := http.NewRequest("GET", fmt.Sprintf("https://api.twitch.tv/helix/users/follows?from_id=%s&first=100&after=%s", userID, pagination), nil)
 	req.Header.Add("Client-ID", fmt.Sprintf("%s", clientID))
 	if len(oauth) > 0 {
 		req.Header.Add("Authorization", fmt.Sprintf("Bearer %s", oauth))
@@ -241,7 +254,7 @@ func getFollowsFromTwitch(userID string, pagination string, clientID string, oau
 			log.Fatal(err)
 		}
 
-		var output []follower
+		var output []followed
 		follows, err := parsed.Path("data").Children()
 		if err != nil {
 			log.Fatal(err)
@@ -257,7 +270,7 @@ func getFollowsFromTwitch(userID string, pagination string, clientID string, oau
 				childdata, _ := child.ChildrenMap()
 				uid, _ := childdata["to_id"].Data().(string)
 				followAt := childdata["followed_at"].Data().(string)
-				output = append(output, follower{uid, followAt})
+				output = append(output, followed{uid, followAt})
 			}
 		}
 		return apiResult{resp.StatusCode,

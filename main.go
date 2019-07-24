@@ -272,8 +272,9 @@ func monitor(c config) {
 		log.Fatal(err)
 	}
 	followMap := make(map[string]string)
-	followsMap := make(map[string]string)
+	followedMap := make(map[string]string)
 	unfollowMap := make(map[string]string)
+	unfollowedMap := make(map[string]string)
 
 	db.View(func(tx *bolt.Tx) error {
 		f := tx.Bucket([]byte("followers"))
@@ -284,7 +285,7 @@ func monitor(c config) {
 
 		o := tx.Bucket([]byte("follows"))
 		o.ForEach(func(k, v []byte) error {
-			followMap[string(k)] = string(v)
+			followedMap[string(k)] = string(v)
 			return nil
 		})
 
@@ -318,7 +319,7 @@ func monitor(c config) {
 
 		Fpage = Fresult.response["next"]
 		// Get next page if there is any
-		var OtoAdd []follower
+		var OtoAdd []followed
 		Oresult, Oout, _ := getFollowsFromTwitch(c.userID, Opage, c.clientID, c.oauth)
 
 		if Oresult.statusCode != 200 && Oresult.limitRemaining == 0 {
@@ -334,7 +335,6 @@ func monitor(c config) {
 		}
 
 		Opage = Oresult.response["next"]
-
 
 		// Filter out followers
 		for _, follower := range Fout {
@@ -388,15 +388,15 @@ func monitor(c config) {
 			}
 		}
 
-		// Filter out follows
-		for _, follows := range Oout {
-			_, exist := followsMap[follows.uid]
+		// Filter out followed
+		for _, followed := range Oout {
+			_, exist := followedMap[followed.uid]
 			if exist {
-				delete(followsMap, follows.uid)
+				delete(followedMap, followed.uid)
 			} else {
-				_, refollows := unfollowMap[follows.uid]
+				_, refollowed := unfollowedMap[followed.uid]
 
-				if refollows {
+				if refollowed {
 					db, err = bolt.Open(defaultDBName, 0600, nil)
 					if err != nil {
 						log.Fatal(err)
@@ -406,7 +406,7 @@ func monitor(c config) {
 					var displayname, login string
 					db.View(func(tx *bolt.Tx) error {
 						u := tx.Bucket([]byte("users"))
-						userdata := u.Get([]byte(follows.uid))
+						userdata := u.Get([]byte(followed.uid))
 						if userdata != nil {
 							parsed, _ := gabs.ParseJSON([]byte(userdata))
 							user, _ := parsed.ChildrenMap()
@@ -419,24 +419,24 @@ func monitor(c config) {
 
 					// If user data is not presetned in user bucket, we querry twitch API
 					if displayname == "" && login == "" {
-					getUserNameInRefollows:
-						result, _ := getUserNameFromTwitch(follows.uid, c.clientID, c.oauth)
+					getUserNameInNotfollowed:
+						result, _ := getUserNameFromTwitch(followed.uid, c.clientID, c.oauth)
 						if result.statusCode != 200 && result.limitRemaining == 0 {
 							waitTime := time.Unix(result.limtResetTime, 0).Sub(time.Now())
 							// fmt.Printf("[SYS] Waiting for API Limit Reset (%s)...\n", waitTime)
 							time.Sleep(waitTime)
 							// fmt.Println("[SYS] API Limit Reset Done...")
-							goto getUserNameInRefollows
+							goto getUserNameInNotfollowed
 						}
 						displayname = result.response["displayname"]
 						login = result.response["login"]
 					}
 
-					fmt.Printf("[INFO][RE-FOLLOW] %s (%s) [%s] Followed: %s\n", displayname, login, follows.uid, follows.followedAt)
+					fmt.Printf("[INFO][RE-FOLLOW] %s (%s) [%s] Followed: %s\n", displayname, login, followed.uid, followed.followedAt)
 				} else {
-					fmt.Printf("[INFO][FOLLOW] UID: %s Follows: %s\n", follows.uid, follows.followedAt)
+					fmt.Printf("[INFO][FOLLOWS] UID: %s Follows: %s\n", followed.uid, followed.followedAt)
 				}
-				OtoAdd = append(OtoAdd, follows)
+				OtoAdd = append(OtoAdd, followed)
 			}
 		}
 
@@ -456,17 +456,17 @@ func monitor(c config) {
 			}
 			return nil
 		})
-	  db.Update(func(tx *bolt.Tx) error {
-		  o := tx.Bucket([]byte("follows"))
+		db.Update(func(tx *bolt.Tx) error {
+			o := tx.Bucket([]byte("followers"))
 
-		  for _, v := range OtoAdd {
-			  err := o.Put([]byte(v.uid), []byte(v.followedAt))
-			  if err != nil {
-				  return err
-			  }
-		  }
-		  return nil
-	  		})
+			for _, v := range OtoAdd {
+				err := o.Put([]byte(v.uid), []byte(v.followedAt))
+				if err != nil {
+					return err
+				}
+			}
+			return nil
+		})
 		db.Close()
 	}
 
@@ -535,7 +535,6 @@ func updateUsers(c config) bool {
 		f := tx.Bucket([]byte("followers"))
 		o := tx.Bucket([]byte("follows"))
 		u := tx.Bucket([]byte("users"))
-
 
 		fcur := f.Cursor()
 		for k, _ := fcur.First(); k != nil; k, _ = fcur.Next() {
