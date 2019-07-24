@@ -12,11 +12,13 @@ import (
 )
 
 type follower struct {
-	uid        string
+	uid string
+	//name       string
 	followedAt string
 }
 type followed struct {
-	uid        string
+	uid string
+	//name       string
 	followedAt string
 }
 
@@ -39,13 +41,22 @@ type Unfollower struct {
 	UnfollowedAt    string `json:"unfollowedAt"`
 }
 
+// Unfollowed user profile info
+type Unfollowed struct {
+	ID              string `json:"id"`
+	Login           string `json:"login"`
+	Displayname     string `json:"displayname"`
+	ProfileImageURL string `json:"profileImageURL"`
+	UnfollowedAt    string `json:"unfollowedAt"`
+}
+
 // Notfollower user profile info
 type Notfollower struct {
 	ID              string `json:"id"`
 	Login           string `json:"login"`
 	Displayname     string `json:"displayname"`
 	ProfileImageURL string `json:"profileImageURL"`
-	FollowedAt      string `json:"followedAt"`
+	UnfollowedAt    string `json:"unfollowedAt"`
 }
 
 type config struct {
@@ -229,7 +240,7 @@ func getFollowersFromTwitch(userID string, pagination string, clientID string, o
 	return apiResult{resp.StatusCode, nil, limit, limitRemain, limitReset}, nil, errors.New("getFollowers: cannot get followers from Twitch API")
 }
 
-func getFollowsFromTwitch(userID string, pagination string, clientID string, oauth string) (apiResult, []followed, error) {
+func getFollowingFromTwitch(userID string, pagination string, clientID string, oauth string) (apiResult, []followed, error) {
 	client := &http.Client{}
 	req, _ := http.NewRequest("GET", fmt.Sprintf("https://api.twitch.tv/helix/users/follows?from_id=%s&first=100&after=%s", userID, pagination), nil)
 	req.Header.Add("Client-ID", fmt.Sprintf("%s", clientID))
@@ -255,7 +266,7 @@ func getFollowsFromTwitch(userID string, pagination string, clientID string, oau
 		}
 
 		var output []followed
-		follows, err := parsed.Path("data").Children()
+		following, err := parsed.Path("data").Children()
 		if err != nil {
 			log.Fatal(err)
 		}
@@ -265,8 +276,8 @@ func getFollowsFromTwitch(userID string, pagination string, clientID string, oau
 			nextPagination = parsed.Path("pagination.cursor").Data().(string)
 		}
 
-		if len(follows) > 0 {
-			for _, child := range follows {
+		if len(following) > 0 {
+			for _, child := range following {
 				childdata, _ := child.ChildrenMap()
 				uid, _ := childdata["to_id"].Data().(string)
 				followAt := childdata["followed_at"].Data().(string)
@@ -277,5 +288,5 @@ func getFollowsFromTwitch(userID string, pagination string, clientID string, oau
 			map[string]string{"next": nextPagination},
 			limit, limitRemain, limitReset}, output, nil
 	}
-	return apiResult{resp.StatusCode, nil, limit, limitRemain, limitReset}, nil, errors.New("getFollows: cannot get follows from Twitch API")
+	return apiResult{resp.StatusCode, nil, limit, limitRemain, limitReset}, nil, errors.New("getFollowing: cannot get following from Twitch API")
 }
