@@ -284,7 +284,8 @@ func monitor(c config) {
 	followMap := make(map[string]string)
 	followedMap := make(map[string]string)
 	unfollowMap := make(map[string]string)
-	notfollowedMap := make(map[string]string)
+	unfollowedMap := make(map[string]string)
+	//	notfollowedMap := make(map[string]string)
 
 	db.View(func(tx *bolt.Tx) error {
 		f := tx.Bucket([]byte("followers"))
@@ -302,6 +303,12 @@ func monitor(c config) {
 		uf := tx.Bucket([]byte("unfollowers"))
 		uf.ForEach(func(k, v []byte) error {
 			unfollowMap[string(k)] = string(v)
+			return nil
+		})
+
+		uo := tx.Bucket([]byte("unfollowing"))
+		uo.ForEach(func(k, v []byte) error {
+			unfollowedMap[string(k)] = string(v)
 			return nil
 		})
 		return nil
@@ -404,7 +411,7 @@ func monitor(c config) {
 			if exist {
 				delete(followedMap, followed.uid)
 			} else {
-				_, refollowed := notfollowedMap[followed.uid]
+				_, refollowed := unfollowedMap[followed.uid]
 
 				if refollowed {
 					db, err = bolt.Open(defaultDBName, 0600, nil)
