@@ -19,7 +19,7 @@ type follower struct {
 type followed struct {
 	uid string
 	//name       string
-	followedAt string
+	followingAt string
 }
 
 // User profile info
@@ -47,7 +47,7 @@ type Unfollowed struct {
 	Login           string `json:"login"`
 	Displayname     string `json:"displayname"`
 	ProfileImageURL string `json:"profileImageURL"`
-	UnfollowedAt    string `json:"unfollowedAt"`
+	UnfollowingAt   string `json:"unfollowedAt"`
 }
 
 // Notfollower user profile info
@@ -57,6 +57,7 @@ type Notfollower struct {
 	Displayname     string `json:"displayname"`
 	ProfileImageURL string `json:"profileImageURL"`
 	UnfollowedAt    string `json:"unfollowedAt"`
+	UnfollowingAt   string `json:"unfollowedAt"`
 }
 
 type config struct {

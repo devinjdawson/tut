@@ -260,11 +260,11 @@ func initialize() config {
 		}
 		return nil
 	})
-	// Try to create notfollowing and userID bucket
+	// Try to create notfollower and userID bucket
 	db.Update(func(tx *bolt.Tx) error {
-		b := tx.Bucket([]byte("nowfollowing"))
+		b := tx.Bucket([]byte("nowfollower"))
 		if b == nil {
-			_, err := tx.CreateBucket([]byte("notfollowing"))
+			_, err := tx.CreateBucket([]byte("notfollower"))
 			if err != nil {
 				return err
 			}
@@ -460,9 +460,9 @@ func monitor(c config) {
 						login = result.response["login"]
 					}
 
-					fmt.Printf("[INFO][RE-FOLLOWED] %s (%s) [%s] Followed: %s\n", displayname, login, followed.uid, followed.followedAt)
+					fmt.Printf("[INFO][RE-FOLLOWED] %s (%s) [%s] Followed: %s\n", displayname, login, followed.uid, followed.followingAt)
 				} else {
-					fmt.Printf("[INFO][FOLLOWS] UID: %s Follows: %s\n", followed.uid, followed.followedAt)
+					fmt.Printf("[INFO][FOLLOWS] UID: %s Follows: %s\n", followed.uid, followed.followingAt)
 				}
 				OtoAdd = append(OtoAdd, followed)
 			}
@@ -488,7 +488,7 @@ func monitor(c config) {
 			o := tx.Bucket([]byte("followers"))
 
 			for _, v := range OtoAdd {
-				err := o.Put([]byte(v.uid), []byte(v.followedAt))
+				err := o.Put([]byte(v.uid), []byte(v.followingAt))
 				if err != nil {
 					return err
 				}

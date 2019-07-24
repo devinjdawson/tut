@@ -406,7 +406,7 @@ func GetUnfollowing(w http.ResponseWriter, r *http.Request) {
 	})
 
 	sort.Slice(unfollowing, func(i, j int) bool {
-		return unfollowing[i].UnfollowedAt > unfollowing[j].UnfollowedAt
+		return unfollowing[i].UnfollowingAt > unfollowing[j].UnfollowingAt
 	})
 
 	w.WriteHeader(200)
