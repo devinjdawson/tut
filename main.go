@@ -416,7 +416,7 @@ func monitor(c config) {
 			}
 		}
 
-		// Filter out followed
+		// Filter out following
 		for _, followed := range Oout {
 			_, exist := followedMap[followed.uid]
 			if exist {
@@ -536,6 +536,58 @@ func monitor(c config) {
 			// Add the unfollower to the unfollowers bucket
 			uf := tx.Bucket([]byte("unfollowers"))
 			err = uf.Put([]byte(k), []byte(time.Now().UTC().Format(time.RFC3339)))
+			if err != nil {
+				return err
+			}
+
+			// Add detailed unfollowed user info into users bucket
+			u := tx.Bucket([]byte("users"))
+			err = u.Put([]byte(k), []byte(result.response["user"]))
+			if err != nil {
+				return err
+			}
+			return nil
+		})
+		db.Close()
+	}
+	// Found unfollowing
+	for k, v := range followedMap {
+	getUserNameInUnfollowed:
+		result, _ := getUserFromTwitch(k, c.clientID, c.oauth)
+		if result.statusCode != 200 && result.limitRemaining == 0 {
+			waitTime := time.Unix(result.limtResetTime, 0).Sub(time.Now())
+			// fmt.Printf("[SYS] Waiting for API Limit Reset (%s)...\n", waitTime)
+			time.Sleep(waitTime)
+			// fmt.Println("[SYS] API Limit Reset Done...")
+			goto getUserNameInUnfollowed
+		}
+
+		parsed, err := gabs.ParseJSON([]byte(result.response["user"]))
+		if err != nil {
+			fmt.Printf("[INFO][UNFOLLOW / ID Not exist] [%s], Followed: %s\n", k, v)
+		} else {
+			userdata, err := parsed.ChildrenMap()
+			if err != nil {
+				log.Fatal(err)
+			}
+			fmt.Printf("[INFO][UNFOLLOW] %s (%s) [%s], Followed: %s\n", userdata["display_name"].Data().(string), userdata["login"].Data().(string), k, v)
+		}
+
+		db, err = bolt.Open(defaultDBName, 0600, nil)
+		if err != nil {
+			log.Fatal(err)
+		}
+		db.Update(func(tx *bolt.Tx) error {
+			// remove the unfollower from followers bucket
+			o := tx.Bucket([]byte("following"))
+			err := o.Delete([]byte(k))
+			if err != nil {
+				return err
+			}
+
+			// Add the unfollower to the unfollowers bucket
+			uo := tx.Bucket([]byte("unfollowing"))
+			err = uo.Put([]byte(k), []byte(time.Now().UTC().Format(time.RFC3339)))
 			if err != nil {
 				return err
 			}
