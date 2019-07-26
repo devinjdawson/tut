@@ -442,8 +442,15 @@ func GetUser(w http.ResponseWriter, r *http.Request) {
 			userdata["display_name"].Data().(string),
 			userdata["profile_image_url"].Data().(string),
 			""}
+		uo := Unfollowed{
+			userdata["id"].Data().(string),
+			userdata["login"].Data().(string),
+			userdata["display_name"].Data().(string),
+			userdata["profile_image_url"].Data().(string),
+			""}
 		w.WriteHeader(200)
 		json.NewEncoder(w).Encode(uf)
+		json.NewEncoder(w).Encode(uo)
 	} else {
 		w.WriteHeader(404)
 	}
